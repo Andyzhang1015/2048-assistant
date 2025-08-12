@@ -10,7 +10,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -23,21 +24,61 @@ jobs:
         path: ~/.buildozer
         key: buildozer-${{ hashFiles('buildozer.spec') }}
 
-    - name: Install dependencies
+    - name: Install system dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential libffi-dev python3-dev libssl-dev libxml2-dev libxslt1-dev libjpeg8-dev zlib1g-dev git
+
+    - name: Install Python dependencies
       run: |
         pip install --upgrade pip
-        pip install kivy buildozer cython
+        pip install cython==0.29.30
+        pip install kivy==2.1.0
+        pip install buildozer
+
+    - name: Display versions
+      run: |
+        python --version
+        pip list | grep -E "(kivy|buildozer|cython)"
 
     - name: Initialize Buildozer
       run: |
         buildozer init
+      continue-on-error: true
+
+    - name: Modify buildozer.spec for Android
+      run: |
+        # 确保buildozer.spec文件存在
+        if [ ! -f buildozer.spec ]; then
+          echo "ERROR: buildozer.spec file not found!"
+          ls -la
+          exit 1
+        fi
+        
+        # 显示buildozer.spec内容以便调试
+        echo "=== buildozer.spec content ==="
+        cat buildozer.spec
+        echo "=============================="
 
     - name: Build APK
       run: |
-        buildozer android debug
+        echo "Starting APK build process..."
+        buildozer -v android debug
+      timeout-minutes: 60
+
+    - name: Check build results
+      run: |
+        echo "Checking bin directory contents:"
+        ls -la bin/ || echo "Bin directory does not exist or is empty"
+        echo "Checking current directory contents:"
+        ls -la
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: 2048-assistant-apk
-        path: bin/*.apk
+        path: |
+          bin/*.apk
+          bin/*.aab
+        if-no-files-found: ignore
