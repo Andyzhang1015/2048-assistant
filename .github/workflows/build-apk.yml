@@ -18,28 +18,10 @@ jobs:
       with:
         python-version: '3.8'
 
-    - name: Cache buildozer global directory
-      uses: actions/cache@v4
-      with:
-        path: ~/.buildozer
-        key: buildozer-${{ hashFiles('buildozer.spec') }}
-
-    - name: Install system dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y build-essential libffi-dev python3-dev libssl-dev libxml2-dev libxslt1-dev libjpeg8-dev zlib1g-dev git
-
-    - name: Install Python dependencies
+    - name: Install dependencies
       run: |
         pip install --upgrade pip
-        pip install cython==0.29.30
-        pip install kivy==2.1.0
-        pip install buildozer
-
-    - name: Display versions
-      run: |
-        python --version
-        pip list | grep -E "(kivy|buildozer|cython)"
+        pip install kivy buildozer
 
     - name: Initialize Buildozer
       run: |
@@ -78,7 +60,4 @@ jobs:
       if: always()
       with:
         name: 2048-assistant-apk
-        path: |
-          bin/*.apk
-          bin/*.aab
-        if-no-files-found: ignore
+        path: bin/*.apk
