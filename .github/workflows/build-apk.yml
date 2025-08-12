@@ -1,27 +1,8 @@
-name: Build APK
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.8'
-
     - name: Install dependencies
       run: |
         pip install --upgrade pip
-        pip install kivy buildozer
+        pip install kivy buildozer cython
+>>>>>>> 42d3a49146a461db5568ffabc628a851c52f1bf8
 
     - name: Initialize Buildozer
       run: |
@@ -60,4 +41,143 @@ jobs:
       if: always()
       with:
         name: 2048-assistant-apk
+<<<<<<< HEAD
+        path: |
+          bin/*.apk
+          bin/*.aab
+        if-no-files-found: ignore
         path: bin/*.apk
+>>>>>>> 42d3a49146a461db5568ffabc628a851c52f1bf8
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.8'
+
+    - name: Cache buildozer global directory
+      uses: actions/cache@v4
+      with:
+        path: ~/.buildozer
+        key: buildozer-${{ hashFiles('buildozer.spec') }}
+
+    - name: Install system dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential libffi-dev python3-dev libssl-dev libxml2-dev libxslt1-dev libjpeg8-dev zlib1g-dev git
+
+    - name: Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install cython==0.29.30
+        pip install kivy==2.1.0
+        pip install buildozer
+
+    - name: Display versions
+      run: |
+        python --version
+        pip list | grep -E "(kivy|buildozer|cython)"
+
+    - name: Initialize Buildozer
+      run: |
+        buildozer init
+      continue-on-error: true
+
+    - name: Modify buildozer.spec for Android
+      run: |
+        # 确保buildozer.spec文件存在
+        if [ ! -f buildozer.spec ]; then
+          echo "ERROR: buildozer.spec file not found!"
+          ls -la
+          exit 1
+        fi
+        
+        # 显示buildozer.spec内容以便调试
+        echo "=== buildozer.spec content ==="
+        cat buildozer.spec
+        echo "=============================="
+
+    - name: Build APK
+      run: |
+        echo "Starting APK build process..."
+        buildozer -v android debug
+      timeout-minutes: 60
+
+    - name: Check build results
+      run: |
+        echo "Checking bin directory contents:"
+        ls -la bin/ || echo "Bin directory does not exist or is empty"
+        echo "Checking current directory contents:"
+        ls -la
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: 2048-assistant-apk
+        path: |
+          bin/*.apk
+          bin/*.aab
+        if-no-files-found: ignore
+=======
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install kivy buildozer cython
+>>>>>>> 42d3a49146a461db5568ffabc628a851c52f1bf8
+
+    - name: Initialize Buildozer
+      run: |
+        buildozer init
+      continue-on-error: true
+
+    - name: Modify buildozer.spec for Android
+      run: |
+        # 确保buildozer.spec文件存在
+        if [ ! -f buildozer.spec ]; then
+          echo "ERROR: buildozer.spec file not found!"
+          ls -la
+          exit 1
+        fi
+        
+        # 显示buildozer.spec内容以便调试
+        echo "=== buildozer.spec content ==="
+        cat buildozer.spec
+        echo "=============================="
+
+    - name: Build APK
+      run: |
+        echo "Starting APK build process..."
+        buildozer -v android debug
+      timeout-minutes: 60
+
+    - name: Check build results
+      run: |
+        echo "Checking bin directory contents:"
+        ls -la bin/ || echo "Bin directory does not exist or is empty"
+        echo "Checking current directory contents:"
+        ls -la
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: 2048-assistant-apk
+<<<<<<< HEAD
+        path: |
+          bin/*.apk
+          bin/*.aab
+        if-no-files-found: ignore
