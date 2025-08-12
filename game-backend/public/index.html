@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>简单网络游戏</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
+        }
+        #gameArea {
+            width: 800px;
+            height: 600px;
+            border: 2px solid #333;
+            margin: 20px auto;
+            position: relative;
+            background-color: white;
+        }
+        .player {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            position: absolute;
+            text-align: center;
+            line-height: 30px;
+            color: white;
+            font-weight: bold;
+        }
+        #controls {
+            margin: 20px;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            font-size: 16px;
+        }
+        #messages {
+            width: 800px;
+            height: 100px;
+            margin: 20px auto;
+            border: 1px solid #333;
+            overflow-y: scroll;
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>简单网络游戏</h1>
+    
+    <div id="login">
+        <h2>登录</h2>
+        <input type="text" id="username" placeholder="用户名">
+        <input type="password" id="password" placeholder="密码">
+        <button onclick="login()">登录</button>
+        <button onclick="register()">注册</button>
+    </div>
+    
+    <div id="gameLobby" style="display:none;">
+        <h2>游戏大厅</h2>
+        <input type="text" id="roomId" placeholder="房间号">
+        <button onclick="joinGame()">加入游戏</button>
+    </div>
+    
+    <div id="gameArea" style="display:none;">
+        <!-- 游戏区域 -->
+    </div>
+    
+    <div id="messages">
+        <!-- 消息区域 -->
+    </div>
+    
+    <div id="controls" style="display:none;">
+        <p>使用 WASD 键移动你的角色</p>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // 全局变量
+        let socket;
+        let playerId;
+        let username;
+        let roomId;
+        let playerElement;
+        let x = 0;
+        let y = 0;
+        
+        // 登录功能
+        function login() {
+            username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showMessage('请输入用户名和密码');
+                return;
+            }
+            
+            // 在实际应用中，这里应该有一个登录请求
+            // 为了简化，我们直接进入游戏大厅
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('gameLobby').style.display = 'block';
+            showMessage('登录成功! 欢迎 ' + username);
+        }
+        
+        // 注册功能
+        function register() {
+            username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showMessage('请输入用户名和密码');
+                return;
+            }
+            
+            fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showMessage('注册失败: ' + data.error);
+                } else {
+                    showMessage('注册成功! 现在可以登录了');
+                }
+            })
+            .catch(err => {
+                showMessage('注册过程中出错: ' + err.message);
+            });
+        }
+        
+        // 加入游戏
+        function joinGame() {
+            roomId = document.getElementById('roomId').value;
+            if (!roomId) {
+                showMessage('请输入房间号');
+                return;
+            }
+            
+            // 隐藏大厅，显示游戏区域
+            document.getElementById('gameLobby').style.display = 'none';
+            document.getElementById('gameArea').style.display = 'block';
+            document.getElementById('controls').style.display = 'block';
+            
+            // 连接Socket.IO
+            socket = io();
+            
+            // 发送加入游戏事件
+            socket.emit('join game', { username, roomId });
+            
+            // 监听玩家加入事件
+            socket.on('player joined', (data) => {
+                showMessage(data.username + ' 加入了游戏');
+                updateGame(data.gameState);
+            });
+            
+            // 监听玩家移动事件
+            socket.on('player moved', (data) => {
+                movePlayer(data.id, data.x, data.y);
+            });
+            
+            // 监听玩家离开事件
+            socket.on('player left', (data) => {
+                showMessage(data.username + ' 离开了游戏');
+                removePlayer(data.id);
+            });
+            
+            showMessage('已加入房间 ' + roomId);
+        }
+        
+        // 更新游戏状态
+        function updateGame(gameState) {
+            const gameArea = document.getElementById('gameArea');
+            
+            // 清除现有的玩家元素
+            const existingPlayers = gameArea.querySelectorAll('.player');
+            existingPlayers.forEach(player => player.remove());
+            
+            // 为每个玩家创建元素
+            gameState.players.forEach(player => {
+                const playerElement = document.createElement('div');
+                playerElement.className = 'player';
+                playerElement.id = 'player-' + player.id;
+                playerElement.style.left = player.x + 'px';
+                playerElement.style.top = player.y + 'px';
+                playerElement.style.backgroundColor = player.id === socket.id ? '#3498db' : '#e74c3c';
+                playerElement.textContent = player.username.charAt(0);
+                gameArea.appendChild(playerElement);
+                
+                // 保存当前玩家的元素引用
+                if (player.id === socket.id) {
+                    window.playerElement = playerElement;
+                    x = player.x;
+                    y = player.y;
+                }
+            });
+        }
+        
+        // 移动玩家
+        function movePlayer(id, newX, newY) {
+            const player = document.getElementById('player-' + id);
+            if (player) {
+                player.style.left = newX + 'px';
+                player.style.top = newY + 'px';
+            }
+        }
+        
+        // 移除玩家
+        function removePlayer(id) {
+            const player = document.getElementById('player-' + id);
+            if (player) {
+                player.remove();
+            }
+        }
+        
+        // 显示消息
+        function showMessage(message) {
+            const messages = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+            messageElement.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+            messages.appendChild(messageElement);
+            messages.scrollTop = messages.scrollHeight;
+        }
+        
+        // 键盘控制
+        document.addEventListener('keydown', (event) => {
+            if (!socket) return;
+            
+            const speed = 10;
+            switch(event.key) {
+                case 'w': // 上
+                    y = Math.max(0, y - speed);
+                    break;
+                case 'a': // 左
+                    x = Math.max(0, x - speed);
+                    break;
+                case 's': // 下
+                    y = Math.min(570, y + speed);
+                    break;
+                case 'd': // 右
+                    x = Math.min(770, x + speed);
+                    break;
+                default:
+                    return;
+            }
+            
+            // 更新玩家位置
+            if (playerElement) {
+                playerElement.style.left = x + 'px';
+                playerElement.style.top = y + 'px';
+                
+                // 通知服务器玩家移动
+                socket.emit('player move', { x, y });
+            }
+        });
+        
+        // 初始消息
+        showMessage('欢迎来到简单网络游戏! 请先登录。');
+    </script>
+</body>
+</html>
